@@ -261,9 +261,9 @@ proc BindDrawObject(obj: TDrawObject) =
 proc DrawBundle*(bundle: var TDrawObject) =
   BindDrawObject(bundle)
   glBindVertexArray(bundle.VertexAttributes)
-  glDrawElementsIndirect(bundle.drawCommand.mode, bundle.drawCommand.idxType, addr bundle.drawCommand.command)
-  #glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
-  #               bundle.drawCommand.idxType, nil)
+  #glDrawElementsIndirect(bundle.drawCommand.mode, bundle.drawCommand.idxType, addr bundle.drawCommand.command)
+  glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
+                 bundle.drawCommand.idxType, nil)
 
 
 ## Public interface for setting various things
