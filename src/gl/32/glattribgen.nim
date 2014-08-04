@@ -39,14 +39,27 @@ proc GetAttribInfo(program, attrib: GLuint): tuple[typ: GLenum, len: GLint] =
     result.typ = cGL_FLOAT
   else:
     raise newException(EUnsupportedAttribType, "attrib type " & repr(result.typ) & " not supported")
+proc ConfirmTypesMatch(typ: GLenum, nimtyp: typedesc): bool =
+  ## confirms that a openGL type constant matches a nimrod type
+  ## so for example GL_FLOAT would match nimrod's float32 type
+  when nimtyp is float32:
+    if typ == cGL_FLOAT: return true
+  elif nimtyp is uint32:
+    if typ == cGL_UNSIGNED_INT: return true
+  elif nimtyp is uint16:
+    if typ == cGL_UNSIGNED_SHORT: return true
+  elif nimtyp is int32:
+    if typ == cGL_INT: return true
+  elif nimtyp is int16:
+    if typ == cGL_SHORT: return true
 proc GetSizeOfGLType(typ: GLenum): int =
   case typ
   of cGL_FLOAT:
     return 4
   else:
     raise newException(EUnsupportedAttribType, "coudl not get type size")
-proc SetUpAttribArray(program, vao, verts, indices: GLuint; typ: typedesc) =
-  var typInst: ptr typ = cast[ptr typ](nil)
+proc SetUpAttribArray(program, vao, verts, indices: GLuint; nimtyp: typedesc[tuple | object]) =
+  var typInst: ptr nimtyp = cast[ptr nimtyp](nil)
   glBindVertexArray(vao)
   glBindBuffer(GL_ARRAY_BUFFER, verts)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices)
@@ -59,8 +72,29 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint; typ: typedesc) =
       raise newException(EAttribNameNotFound, name & " is not an attrib in the program")
     var (typ, len) = GetAttribInfo(program, attribLoc.GLuint)
     assert(sizeof(val) == GetSizeOfGLType(typ) * len)
+    assert(ConfirmTypesMatch(typ, type(val)))
     glVertexAttribPointer(attribLoc.GLuint, len, typ, false, GLsizei(sizeof(typ) * len), cast[pointer](addr val))
     inc(attribIdx)
+proc SetUpAttribArray(program, vao, verts, indices: GLuint, nimtyp: typedesc) =
+  var activeAttribs: GLint
+  glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, addr activeAttribs)
+  var offset = 0
+  var stride = 0
+  glBindVertexArray(vao)
+  glBindBuffer(GL_ARRAY_BUFFER, verts)
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices)
+  for i in 0..activeAttribs - 1:
+    var (typ, len) = GetAttribInfo(program, i.GLuint)
+    assert(ConfirmTypesMatch(typ, nimtyp))
+    stride = stride + sizeof(nimtyp) * len
+  for i in 0..activeAttribs - 1:
+    var (typ, len) = GetAttribInfo(program, i.GLuint)
+    glEnableVertexAttribArray(i.GLuint)
+    glVertexAttribPointer(i.GLuint, len, typ, false, GLsizei(stride), cast[pointer](offset))
+    offset = offset + sizeof(nimtyp) * len
+  glBindVertexArray(0)
+  glBindBuffer(GL_ARRAY_BUFFER, 0)
+
 
 proc CreateVertexInputs*[T](program, vao: GLuint, verts: var openarray[T]): GLuint =
   glBindVertexArray(vao)

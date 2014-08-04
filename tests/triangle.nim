@@ -1,5 +1,4 @@
-import gldraw
-import glprogram
+import phosphor
 import opengl
 import glfw/glfw
 import sets, unsigned
@@ -20,9 +19,9 @@ void main() {
 """
 type TVert = object
   pos: array[2, float32]
-var verts: array[3, TVert] = [TVert(pos: [0.0'f32, 0.5]),
-                              TVert(pos: [0.5'f32, -0.5]),
-                              TVert(pos: [-0.5'f32, -0.5])]
+var verts: array[6, float32] = [0.0'f32, 0.5,
+                              0.5'f32, -0.5,
+                              -0.5'f32, -0.5]
 var idx: array[3, uint32] = [2'u32,1,0]
 proc main() =
   glfw.init()
