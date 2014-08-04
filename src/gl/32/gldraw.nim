@@ -78,6 +78,7 @@ proc findTexTypeOfSampler(program, sampler: GLuint): GLenum =
   of GL_SAMPLER_2D_SHADOW: return GL_TEXTURE_2D
   else: raise newException(EUnsupportedSamplerType, "sampler type is not supported")
 proc initProgramData(program: GLuint): TProgramData =
+  result = initProgramData()
   var indices: GLint
   var blockName: array[1..100, GLchar]
   var blockNameLength: GLsizei
@@ -87,6 +88,7 @@ proc initProgramData(program: GLuint): TProgramData =
       glGetActiveUniformBlockName(program, i.GLuint, len(blockName).GLsizei, addr blockNameLength, addr blockName[1])
       if blockNameLength >= len(blockName):
         raise newException(EIdentifierTooLong, "max GLSL uniform identifier length is 99 chars")
+      echo($(addr blockName[1]))
       result.uniformBlocks[$(addr blockName[1])] = i.GLuint
       glUniformBlockBinding(program, i.GLuint, i.GLuint)
   glGetProgramiv(program, GL_ACTIVE_UNIFORMS, addr indices)
@@ -103,7 +105,7 @@ proc initProgramData(program: GLuint): TProgramData =
 
 proc initDrawElementsIndirectCommand*(): TDrawElementsIndirectCommand =
   result.count = 0
-  result.primCount = 0
+  result.primCount = 1
   result.firstIndex = 0
   result.baseVertex = 0
   result.baseInstance = 0
@@ -149,7 +151,7 @@ proc SetUniformBuffer(self: var TDrawObject, name: string, val: GLuint) =
 proc UpdateBuffer(typ: GLenum, buff: GLuint, val: ptr, num: int) =
   var size: GLint
   glBindBuffer(typ, buff)
-  glGetBufferParameteriv(buff, GL_BUFFER_SIZE, addr size)
+  glGetBufferParameteriv(typ, GL_BUFFER_SIZE, addr size)
   if (sizeof(type(val[])) * num) > size:
     glBufferData(typ, (sizeof(type(val[])) * num).GLsizeiptr, cast[pointer](val), GL_STATIC_DRAW)
   else:
@@ -157,27 +159,27 @@ proc UpdateBuffer(typ: GLenum, buff: GLuint, val: ptr, num: int) =
   glBindBuffer(typ, 0)
 
 proc UpdateUniformBuffer(self: var TDrawObject, name: string, val: ptr, num: int) =
-  var info = programinfo.mget(self.program)
+  var info = mget(programinfo, self.program)
   var bindingLoc = info.uniformBlocks[name]
-  var ubo = self.uniforms[bindingLoc]
+  var ubo = self.uniforms[bindingLoc.int]
   assert(ubo in ownedBuffers)
   UpdateBuffer(GL_UNIFORM_BUFFER, ubo, val, num)
 
 proc SetUniformBuffer(self: var TDrawObject, name: string, val: ptr, num: int) =
-  var info = programinfo.mget(self.program)
+  var info = mget(programinfo, self.program)
   var bindingLoc = info.uniformBlocks[name]
-  var ubo = self.uniforms[bindingLoc]
+  var ubo = self.uniforms[bindingLoc.int]
   if ubo notin ownedBuffers:
     var buffer: GLuint
     glGenBuffers(1, addr buffer)
     SetUniformBuffer(self, name, buffer)
-    ownedBuffers.incl(buffer)
+    incl(ownedBuffers, buffer)
   UpdateUniformBuffer(self, name, val, num)
 
 
 proc SetUniformBuffer(self: var TDrawObject, name: string, val: var) =
   SetUniformBuffer(self, name, addr val, 1)
-proc SetUniformBuffer[T](self: var TDrawObject, name: string, vals: openarray[T]) =
+proc SetUniformBuffer[T](self: var TDrawObject, name: string, vals: var openarray[T]) =
   SetUniformBuffer(self, name, addr vals[0], len(vals))
 
 proc SetVertexBuffer[T](self: var TDrawObject, vals: var openarray[T]) =
@@ -259,8 +261,9 @@ proc BindDrawObject(obj: TDrawObject) =
 proc DrawBundle*(bundle: var TDrawObject) =
   BindDrawObject(bundle)
   glBindVertexArray(bundle.VertexAttributes)
-  glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
-                 bundle.drawCommand.idxType, nil)
+  glDrawElementsIndirect(bundle.drawCommand.mode, bundle.drawCommand.idxType, addr bundle.drawCommand.command)
+  #glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
+  #               bundle.drawCommand.idxType, nil)
 
 
 ## Public interface for setting various things
@@ -268,5 +271,8 @@ proc `vertices=`*[T](self: var TDrawObject, verts: var openarray[T]) =
   SetVertexBuffer(self, verts)
 proc `indices=`*[T](self: var TDrawObject, indices: var openarray[T]) =
   SetIndexBuffer(self, indices)
+proc `.=`*(self: var TDrawObject, name: string, val: var) =
+  SetUniformBuffer(self, name, val)
 proc `.=`*(self: var TDrawObject, name: string, val: auto) =
+  var val = val
   SetUniformBuffer(self, name, val)
