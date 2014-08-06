@@ -60,6 +60,7 @@ type TProgramData = object
 
 type EIdentifierTooLong = object of ESynch
 type EUnsupportedSamplerType = object of Esynch
+type ENameNotFound = object of ESynch
 proc initProgramData(): TProgramData =
   result.uniformBlocks = initTable[string, GLuint]()
   result.opaqueNames = initTable[string, TSamplerData]()
@@ -272,7 +273,13 @@ proc `vertices=`*[T](self: var TDrawObject, verts: var openarray[T]) =
 proc `indices=`*[T](self: var TDrawObject, indices: var openarray[T]) =
   SetIndexBuffer(self, indices)
 proc `.=`*(self: var TDrawObject, name: string, val: var) =
-  SetUniformBuffer(self, name, val)
+  var info = mget(programinfo, self.program)
+  if hasKey(info.uniformBlocks, name):
+    SetUniformBuffer(self, name, val)
+  elif hasKey(info.opaqueNames, name):
+    SetSamplerTexture(self, name, val)
+  else:
+    raise newException(ENameNotFound, "name not found in shader")
 proc `.=`*(self: var TDrawObject, name: string, val: auto) =
   var val = val
-  SetUniformBuffer(self, name, val)
+  `.=`(self, name, val)
