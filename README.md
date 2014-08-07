@@ -26,7 +26,7 @@ void main() {
 I could populate the ColorBlock uniform block by simply writing 
 `obj.ColorBlock = [0.0'f32m 1.0, 0.0, 1.0]` in nimrod. This works
 for more than just literal arrays, any kind of structure that has the
-same data layout as the uniform block, for this reason it is recommended
+same data layout as the uniform block can be used. For this reason it is recommended
 that you use the std140 layout on your uniform interface blocks.
 
 A similar syntax can be used to attach textures to shaders, note that
