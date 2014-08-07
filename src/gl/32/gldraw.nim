@@ -93,13 +93,14 @@ proc initProgramData(program: GLuint): TProgramData =
       result.uniformBlocks[$(addr blockName[1])] = i.GLuint
       glUniformBlockBinding(program, i.GLuint, i.GLuint)
   glGetProgramiv(program, GL_ACTIVE_UNIFORMS, addr indices)
+  echo indices
   if indices != 0:
     for i in 0..indices - 1:
       var uniformType: GLint
       var idx = i.GLuint # we need to do this to take the address of the variable
       glGetActiveUniformsiv(program, 1, addr idx, GL_UNIFORM_TYPE, addr uniformType)
       if uniformType in SamplerTypes:
-        glGetActiveUniformBlockName(program, i.GLuint, len(blockName).GLsizei, addr blockNameLength, addr blockName[1])
+        glGetActiveUniformName(program, i.GLuint, len(blockName).GLsizei, addr blockNameLength, addr blockName[1])
         if blockNameLength >= len(blockName):
           raise newException(EIdentifierTooLong, "max GLSL uniform name length is 99 chars")
         result.opaqueNames[$(addr blockName[1])] = TSamplerData(location: i, typ: findTexTypeOfSampler(program, i.GLuint))
@@ -272,7 +273,7 @@ proc `vertices=`*[T](self: var TDrawObject, verts: var openarray[T]) =
   SetVertexBuffer(self, verts)
 proc `indices=`*[T](self: var TDrawObject, indices: var openarray[T]) =
   SetIndexBuffer(self, indices)
-proc `.=`*(self: var TDrawObject, name: string, val: var) =
+proc SetShaderValue[T](self: var TDrawObject, name: string, val: var T) =
   var info = mget(programinfo, self.program)
   if hasKey(info.uniformBlocks, name):
     SetUniformBuffer(self, name, val)
@@ -280,6 +281,9 @@ proc `.=`*(self: var TDrawObject, name: string, val: var) =
     SetSamplerTexture(self, name, val)
   else:
     raise newException(ENameNotFound, "name not found in shader")
-proc `.=`*(self: var TDrawObject, name: string, val: auto) =
-  var val = val
-  `.=`(self, name, val)
+proc `.=`*[T](self: var TDrawObject, name: string, val: T) = 
+  when T is var:
+    SetShaderValue(self, name, val)
+  else:
+    var val = val
+    SetShaderValue(self, name, val)
