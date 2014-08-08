@@ -43,6 +43,8 @@ type TDrawCommand* = object
 type TDrawObject* = object
   program: GLuint
   drawCommand: TDrawCommand
+  viewport: array[2, GLint]
+  FrameBufferObject: GLuint
   VertexBuffer: GLuint
   IndexBuffer: GLuint
   VertexAttributes: GLuint
@@ -261,12 +263,16 @@ proc BindDrawObject(obj: TDrawObject) =
   for key, elm in obj.opaqueTypes:
     glUniform1i(key, elm)
 proc DrawBundle*(bundle: var TDrawObject) =
+  var oldVp: array[4, GLint]
+  glGetIntegerv(cGL_VIEWPORT, addr oldVp[0])
+  glViewport(0, 0, bundle.viewport[0], bundle.viewport[1])
+  glBindFrameBuffer(GL_FRAMEBUFFER, bundle.FrameBufferObject)
   BindDrawObject(bundle)
   glBindVertexArray(bundle.VertexAttributes)
   #glDrawElementsIndirect(bundle.drawCommand.mode, bundle.drawCommand.idxType, addr bundle.drawCommand.command)
   glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
                  bundle.drawCommand.idxType, nil)
-
+  glViewport(oldvp[0], oldvp[1], oldvp[2], oldvp[3])
 
 ## Public interface for setting various things
 proc `vertices=`*[T](self: var TDrawObject, verts: var openarray[T]) =
