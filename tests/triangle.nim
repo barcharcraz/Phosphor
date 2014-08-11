@@ -24,14 +24,14 @@ import phosphor
 import opengl
 import glfw/glfw
 import sets, unsigned
-const vs = glsl"""
+const vs = """
 #version 440
 in vec2 pos;
 void main() {
   gl_Position = vec4(pos, 0.5, 1);
 }
 """
-const ps = glsl"""
+const ps = """
 #version 440
 out vec4 outputColor;
 void main() {

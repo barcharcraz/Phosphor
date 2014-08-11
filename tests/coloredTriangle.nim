@@ -25,14 +25,14 @@ import opengl
 import glfw/glfw
 import sets, unsigned, tables
 
-const vs = glsl"""
+const vs = """
 #version 140
 in vec2 pos;
 void main() {
   gl_Position = vec4(pos, 0.5, 1);
 }
 """
-const ps = glsl"""
+const ps = """
 #version 140
 out vec4 outputColor;
 uniform ColorBlock {

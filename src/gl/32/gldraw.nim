@@ -43,8 +43,6 @@ type TDrawCommand* = object
 type TDrawObject* = object
   program: GLuint
   drawCommand: TDrawCommand
-  viewport: array[2, GLint]
-  FrameBufferObject: GLuint
   VertexBuffer: GLuint
   IndexBuffer: GLuint
   VertexAttributes: GLuint
@@ -91,11 +89,9 @@ proc initProgramData(program: GLuint): TProgramData =
       glGetActiveUniformBlockName(program, i.GLuint, len(blockName).GLsizei, addr blockNameLength, addr blockName[1])
       if blockNameLength >= len(blockName):
         raise newException(EIdentifierTooLong, "max GLSL uniform identifier length is 99 chars")
-      echo($(addr blockName[1]))
       result.uniformBlocks[$(addr blockName[1])] = i.GLuint
       glUniformBlockBinding(program, i.GLuint, i.GLuint)
   glGetProgramiv(program, GL_ACTIVE_UNIFORMS, addr indices)
-  echo indices
   if indices != 0:
     for i in 0..indices - 1:
       var uniformType: GLint
@@ -263,16 +259,11 @@ proc BindDrawObject(obj: TDrawObject) =
   for key, elm in obj.opaqueTypes:
     glUniform1i(key, elm)
 proc DrawBundle*(bundle: var TDrawObject) =
-  var oldVp: array[4, GLint]
-  glGetIntegerv(cGL_VIEWPORT, addr oldVp[0])
-  glViewport(0, 0, bundle.viewport[0], bundle.viewport[1])
-  glBindFrameBuffer(GL_FRAMEBUFFER, bundle.FrameBufferObject)
   BindDrawObject(bundle)
   glBindVertexArray(bundle.VertexAttributes)
   #glDrawElementsIndirect(bundle.drawCommand.mode, bundle.drawCommand.idxType, addr bundle.drawCommand.command)
   glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
                  bundle.drawCommand.idxType, nil)
-  glViewport(oldvp[0], oldvp[1], oldvp[2], oldvp[3])
 
 ## Public interface for setting various things
 proc `vertices=`*[T](self: var TDrawObject, verts: var openarray[T]) =
@@ -284,7 +275,10 @@ proc SetShaderValue[T](self: var TDrawObject, name: string, val: var T) =
   if hasKey(info.uniformBlocks, name):
     SetUniformBuffer(self, name, val)
   elif hasKey(info.opaqueNames, name):
-    SetSamplerTexture(self, name, val)
+    when T is GLuint:
+      SetSamplerTexture(self, name, val)
+    else:
+      raise newException(ENameNotFound, "name not found in shader")
   else:
     raise newException(ENameNotFound, "name not found in shader")
 proc `.=`*[T](self: var TDrawObject, name: string, val: T) = 
