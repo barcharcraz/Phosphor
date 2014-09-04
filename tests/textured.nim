@@ -27,25 +27,21 @@ import sets, unsigned, tables
 import freeimage
 
 const vs = """
-#version 150
+#version 140
 in vec2 pos;
-out VertData {
-  vec2 uv;
-} outData;
+out vec2 uv;
 void main() {
   gl_Position = vec4(pos, 0.5, 1);
-  outData.uv = pos;
+  uv = pos;
 }
 """
 const ps = """
-#version 150
+#version 140
 out vec4 outputColor;
-in VertData {
-  vec2 uv;
-} inData;
+in vec2 uv;
 uniform sampler2D tex;
 void main() {
-  outputColor = texture(tex, inData.uv);
+  outputColor = texture(tex, uv);
 }
 """
 var verts: array[6, float32] = [0.0'f32, 0.5,
@@ -56,7 +52,7 @@ var idx: array[3, uint32] = [2'u32,1,0]
 proc main() =
   glfw.init()
   FreeImage_Initialise(0)
-  var win = newWin(GL_API = initGL_API(version = glv44))
+  var win = newWin(GL_API = initGL_API(version = glv31))
   makeContextCurrent(win)
   loadExtensions()
   glEnable(GL_DEPTH_TEST)

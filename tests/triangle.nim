@@ -25,14 +25,14 @@ import opengl
 import glfw/glfw
 import sets, unsigned
 const vs = """
-#version 440
+#version 140
 in vec2 pos;
 void main() {
   gl_Position = vec4(pos, 0.5, 1);
 }
 """
 const ps = """
-#version 440
+#version 140
 out vec4 outputColor;
 void main() {
   //red color
