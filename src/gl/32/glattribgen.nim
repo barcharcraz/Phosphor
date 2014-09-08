@@ -22,23 +22,45 @@
 import opengl
 type EAttribNameNotFound = object of ESynch
 type EUnsupportedAttribType = object of ESynch
-proc GetAttribInfo(program, attrib: GLuint): tuple[typ: GLenum, len: GLint] =
-  glGetActiveAttrib(program, attrib, 0, nil, addr result.len, addr result.typ, nil)
-  case result.typ
-  of cGL_FLOAT:
-    result.len = 1
-    result.typ = cGL_FLOAT
-  of GL_FLOAT_VEC2:
-    result.len = 2
-    result.typ = cGL_FLOAT
-  of GL_FLOAT_VEC3:
-    result.len = 3
-    result.typ = cGL_FLOAT
-  of GL_FLOAT_VEC4:
-    result.len = 4
-    result.typ = cGL_FLOAT
-  else:
-    raise newException(EUnsupportedAttribType, "attrib type " & repr(result.typ) & " not supported")
+type EAttribNameTooLong = object of ESynch
+type TAttributeInfo = object
+  typ: GLenum
+  size: GLint
+  name: string
+  location: GLint
+proc GetAttribInfo(program, attrib: GLuint): TAttributeInfo =
+  var numAtts: GLint
+  var nameBuffer: array[100, GLchar]
+  var writtenLen: GLint
+  glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, addr numAtts)
+  for i in 0..numAtts-1:
+    glGetActiveAttrib(program, i.GLuint, 100,
+      addr writtenLen,
+      addr result.size,
+      addr result.typ,
+      addr nameBuffer[0])
+  if writtenLen == 100:
+    raise newException(EAttribNameTooLong,
+      "Attribute names must be less than 100 characters")
+  result.name = $cast[cstring](addr nameBuffer[0])
+  result.location = glGetAttribLocation(program, addr nameBuffer[0])
+proc GetVectorTypLength(typ: GLenum): GLint =
+  case typ
+  of cGL_FLOAT: return 1
+  of GL_FLOAT_VEC2: return 2
+  of GL_FLOAT_VEC3: return 3
+  of GL_FLOAT_VEC4: return 4
+  else: raise newException(EUnsupportedAttribType,
+    "attrib type " & repr(typ) & " not supported")
+proc GetVectorTypBaseTyp(typ: GLenum): GLint =
+  case typ
+  of cGL_FLOAT: return cGL_FLOAT
+  of GL_FLOAT_VEC2: return cGL_FLOAT
+  of GL_FLOAT_VEC3: return cGL_FLOAT
+  of GL_FLOAT_VEC4: return cGL_FLOAT
+  else: raise newException(EUnsupportedAttribType,
+    "attrib type " & repr(typ) & " not supported")
+
 proc ConfirmTypesMatch(typ: GLenum, nimtyp: typedesc): bool =
   ## confirms that a openGL type constant matches a nimrod type
   ## so for example GL_FLOAT would match nimrod's float32 type
@@ -70,10 +92,15 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint; nimtyp: typedesc[tup
     attribLoc = glGetAttribLocation(program, name)
     if attribLoc == -1: 
       raise newException(EAttribNameNotFound, name & " is not an attrib in the program")
-    var (typ, len) = GetAttribInfo(program, attribLoc.GLuint)
-    assert(sizeof(val) == GetSizeOfGLType(typ) * len)
-    assert(ConfirmTypesMatch(typ, type(val)))
-    glVertexAttribPointer(attribLoc.GLuint, len, typ, false, GLsizei(sizeof(typ) * len), cast[pointer](addr val))
+    var attribInfo = GetAttribInfo(program, attribLoc.GLuint)
+    assert(sizeof(val) == GetSizeOfGLType(attribInfo.typ) * attribInfo.size)
+    assert(ConfirmTypesMatch(attribInfo.typ, type(val)))
+    glVertexAttribPointer(attribLoc.GLuint,
+      attribInfo.size,
+      attribInfo.typ,
+      false,
+      GLsizei(sizeof(attribInfo.typ) * attribInfo.size),
+      cast[pointer](addr val))
     inc(attribIdx)
 proc SetUpAttribArray(program, vao, verts, indices: GLuint, nimtyp: typedesc) =
   var activeAttribs: GLint
@@ -84,14 +111,14 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint, nimtyp: typedesc) =
   glBindBuffer(GL_ARRAY_BUFFER, verts)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices)
   for i in 0..activeAttribs - 1:
-    var (typ, len) = GetAttribInfo(program, i.GLuint)
-    assert(ConfirmTypesMatch(typ, nimtyp))
-    stride = stride + sizeof(nimtyp) * len
+    var info = GetAttribInfo(program, i.GLuint)
+    assert(ConfirmTypesMatch(info.typ, nimtyp))
+    stride = stride + sizeof(nimtyp) * info.size
   for i in 0..activeAttribs - 1:
-    var (typ, len) = GetAttribInfo(program, i.GLuint)
+    var info = GetAttribInfo(program, i.GLuint)
     glEnableVertexAttribArray(i.GLuint)
-    glVertexAttribPointer(i.GLuint, len, typ, false, GLsizei(stride), cast[pointer](offset))
-    offset = offset + sizeof(nimtyp) * len
+    glVertexAttribPointer(i.GLuint, info.size, info.typ, false, GLsizei(stride), cast[pointer](offset))
+    offset = offset + sizeof(nimtyp) * info.size
   glBindVertexArray(0)
   glBindBuffer(GL_ARRAY_BUFFER, 0)
 

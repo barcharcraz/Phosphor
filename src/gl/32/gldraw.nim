@@ -56,6 +56,7 @@ type TSamplerData = object
   typ: GLenum
 type TProgramData = object
   uniformBlocks: TTable[string, GLuint]
+  vertexAttribs: TTable[string, GLuint]
   opaqueNames: TTable[string, TSamplerData]
 
 type EIdentifierTooLong = object of ESynch
@@ -78,7 +79,14 @@ proc findTexTypeOfSampler(program, sampler: GLuint): GLenum =
   of GL_SAMPLER_1D_SHADOW: return GL_TEXTURE_1D
   of GL_SAMPLER_2D_SHADOW: return GL_TEXTURE_2D
   else: raise newException(EUnsupportedSamplerType, "sampler type is not supported")
+
+
+
 proc initProgramData(program: GLuint): TProgramData =
+  ## queries information about a program and fills in program metadata
+  ## this uses the perhaps slow openGL program introspection API but
+  ## it caches the loaded metadata in a hashtable based on the program ID
+  ## TODO: This could cause problems if a program ID is reused
   result = initProgramData()
   var indices: GLint
   var blockName: array[1..100, GLchar]
