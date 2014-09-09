@@ -47,3 +47,18 @@ void main() {
   UVOut = uv0;
 }
 """
+ 
+glfw.init()
+var win  = newWin(GL_API = initGL_API(version = glv31))
+makeContextCurrent(win)
+loadExtensions()
+glEnable(GL_DEPTH_TEST)
+glDepthFunc(GL_LEQUAL)
+glDepthMaxk(true)
+glEnable(cGL_CULL_FACE)
+glFrontFace(GL_CCW)
+glClearColor(0,0,0,1)
+
+var program = CreateProgram(vs, ps)
+var obj = initDrawObject(program)
+
