@@ -211,7 +211,7 @@ proc SetIndexBuffer[T](self: var TDrawObject, vals: var openarray[T]) =
 proc SetSamplerTexture(self: var TDrawObject, name: string, val: GLuint) =
   ## val is a texture handle, the assumption is that the texture has the correct type
   var info = addr programinfo.mget(self.program)
-  var samplerInfo = info.OpaqueNames.mget(name)
+  var samplerInfo = info.opaqueNames.mget(name)
   var newTex = (samplerInfo.typ, val)
   proc `==`(a,b: tuple[typ: GLenum, id: GLuint]): bool = a.id == b.id
   var texIdx = find(self.textures, newTex)
