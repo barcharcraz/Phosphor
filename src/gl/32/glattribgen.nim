@@ -52,7 +52,7 @@ proc GetVectorTypLength(typ: GLenum): GLint =
   of GL_FLOAT_VEC4: return 4
   else: raise newException(EUnsupportedAttribType,
     "attrib type " & repr(typ) & " not supported")
-proc GetVectorTypBaseTyp(typ: GLenum): GLint =
+proc GetVectorTypBaseTyp(typ: GLenum): GLenum =
   case typ
   of cGL_FLOAT: return cGL_FLOAT
   of GL_FLOAT_VEC2: return cGL_FLOAT
@@ -112,13 +112,21 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint, nimtyp: typedesc) =
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices)
   for i in 0..activeAttribs - 1:
     var info = GetAttribInfo(program, i.GLuint)
-    assert(ConfirmTypesMatch(info.typ, nimtyp))
+    # we convert types such as GL_FLOAT_VEC3 to GL_FLOAT
+    # TODO: Make sure to check that the array is shaped so that
+    # is /could/ be an array of vectors of the right length
+    var baseType = GetVectorTypBaseTyp(info.typ)
+    assert(ConfirmTypesMatch(baseType, nimtyp))
     stride = stride + sizeof(nimtyp) * info.size
   for i in 0..activeAttribs - 1:
     var info = GetAttribInfo(program, i.GLuint)
     glEnableVertexAttribArray(i.GLuint)
-    glVertexAttribPointer(i.GLuint, info.size, info.typ, false, GLsizei(stride), cast[pointer](offset))
-    offset = offset + sizeof(nimtyp) * info.size
+    var vecSize = GetVectorTypLength(info.typ)
+    var baseType = GetVectorTypBaseTyp(info.typ)
+    glVertexAttribPointer(i.GLuint, info.size * vecSize,
+                          baseType, false, GLsizei(stride),
+                          cast[pointer](offset))
+    offset = offset + sizeof(nimtyp) * info.size * vecSize
   glBindVertexArray(0)
   glBindBuffer(GL_ARRAY_BUFFER, 0)
 
