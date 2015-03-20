@@ -49,7 +49,7 @@ var idx: array[3, uint32] = [2'u32,1,0]
 
 proc main() =
   glfw.init()
-  var win = newWin(GL_API = initGL_API(version = glv31))
+  var win = newGlWin(version = glv32, profile = glpCore, forwardCompat=true)
   makeContextCurrent(win)
   loadExtensions()
   glEnable(GL_DEPTH_TEST)
