@@ -20,9 +20,9 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 import opengl
-type EAttribNameNotFound = object of ESynch
-type EUnsupportedAttribType = object of ESynch
-type EAttribNameTooLong = object of ESynch
+type EAttribNameNotFound = object of Exception
+type EUnsupportedAttribType = object of Exception
+type EAttribNameTooLong = object of Exception
 type TAttributeInfo = object
   typ: GLenum
   size: GLint

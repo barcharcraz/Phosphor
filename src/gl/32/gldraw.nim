@@ -46,22 +46,23 @@ type TDrawObject* = object
   VertexBuffer: GLuint
   IndexBuffer: GLuint
   VertexAttributes: GLuint
+  framebuffer: GLuint
   uniforms: seq[GLuint] ## sequence of uniform blocks, index is uniform block binding
   textures: seq[tuple[typ: GLenum, id: GLuint]] ## sequence of textures index is texture unit
-  opaqueTypes: TTable[GLint, GLint] ## pairs of (location, value) for things to be bound to samplers
+  opaqueTypes: Table[GLint, GLint] ## pairs of (location, value) for things to be bound to samplers
                                      ## the value is the texture unit
 
 type TSamplerData = object
   location: GLint
   typ: GLenum
 type TProgramData = object
-  uniformBlocks: TTable[string, GLuint]
-  vertexAttribs: TTable[string, GLuint]
-  opaqueNames: TTable[string, TSamplerData]
+  uniformBlocks: Table[string, GLuint]
+  vertexAttribs: Table[string, GLuint]
+  opaqueNames: Table[string, TSamplerData]
 
-type EIdentifierTooLong = object of ESynch
-type EUnsupportedSamplerType = object of Esynch
-type ENameNotFound = object of ESynch
+type EIdentifierTooLong = object of Exception
+type EUnsupportedSamplerType = object of Exception
+type ENameNotFound = object of Exception
 proc initProgramData(): TProgramData =
   result.uniformBlocks = initTable[string, GLuint]()
   result.opaqueNames = initTable[string, TSamplerData]()
@@ -135,6 +136,7 @@ proc initDrawObject*(program: GLuint): TDrawObject =
   result.drawCommand = initDrawCommand()
   newSeq(result.uniforms, len(programinfo[program].uniformBlocks))
   result.opaqueTypes = initTable[GLint, GLint]()
+  result.framebuffer = 0
   result.textures = @[]
 proc SetVertexBuffer(self: var TDrawObject, val: GLuint) = 
   if self.VertexBuffer in ownedBuffers:
@@ -269,6 +271,7 @@ proc BindDrawObject(obj: TDrawObject) =
 proc DrawBundle*(bundle: var TDrawObject) =
   BindDrawObject(bundle)
   glBindVertexArray(bundle.VertexAttributes)
+  glBindFramebuffer(GL_FRAMEBUFFER, bundle.framebuffer)
   #glDrawElementsIndirect(bundle.drawCommand.mode, bundle.drawCommand.idxType, addr bundle.drawCommand.command)
   glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
                  bundle.drawCommand.idxType, nil)
