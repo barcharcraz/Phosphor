@@ -49,7 +49,7 @@ type TDrawObject* = object
   uniforms: seq[GLuint] ## sequence of uniform blocks, index is uniform block binding
   textures: seq[tuple[typ: GLenum, id: GLuint]] ## sequence of textures index is texture unit
   opaqueTypes: TTable[GLint, GLint] ## pairs of (location, value) for things to be bound to samplers
-                                     ## the value is the texture unit
+                                    ## the value is the texture unit
 
 type TSamplerData = object
   location: GLint
