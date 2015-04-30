@@ -1,6 +1,6 @@
 ## The MIT License (MIT)
 ## 
-## Copyright (c) 2014 Charlie Barto
+## Copyright (c) 2015 Charlie Barto
 ## 
 ## Permission is hereby granted, free of charge, to any person obtaining a copy
 ## of this software and associated documentation files (the "Software"), to deal
@@ -20,20 +20,14 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 
-import unsigned
 import opengl
-type EGraphicsAPI* = object of Exception
-proc EnumString*(val: GLenum): string =
-  ## gets the string representation of
-  ## `val`
-  case val
-  of GL_INVALID_ENUM: result = "GL_INVALID_ENUM"
-  of GL_INVALID_OPERATION: result = "GL_INVALID_OPERATION"
-  of GL_INVALID_VALUE: result = "GL_INVALID_VALUE"
-  else: result = "unrecognised enum"
-proc CheckError*() =
-  var err = glGetError()
-  if err != GL_NO_ERROR:
-    var errStr = EnumString(err)
-    raise newException(EGraphicsAPI, errStr)
 
+#stupid hack, we exploit the dot
+#casting style so we can do fbo.Color[0] = ...
+#there may be a better way to do this
+type Color = distinct GLuint
+type Depth = distinct GLuint
+type Stencil = distinct GLuint
+proc initFBO(): GLuint =
+  glGenFramebuffers(1, addr result)
+proc `[]=`(t: Color, n: int,

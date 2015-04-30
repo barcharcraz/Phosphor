@@ -52,7 +52,7 @@ var idx: array[3, uint32] = [2'u32,1,0]
 proc main() =
   glfw.init()
   FreeImage_Initialise(0)
-  var win = newWin(GL_API = initGL_API(version = glv31))
+  var win = newGlWin(version=glv32, forwardCompat=true, profile=glpCore)
   makeContextCurrent(win)
   loadExtensions()
   glEnable(GL_DEPTH_TEST)

@@ -48,7 +48,8 @@ var idx: array[3, uint32] = [2'u32,1,0]
 proc main() =
   glfw.init()
   var api = initGL_API(glv31, true, true, glpAny, glrNone)
-  var wnd = newWin(dim = (w: 640, h: 480), title = "triangle", GL_API=api, refreshRate = 1)
+  var wnd = newGlWin(dim = (w: 640, h: 480), title = "triangle", version=glv32, profile=glpCore, 
+                     forwardCompat=true, refreshRate = 1)
 
   makeContextCurrent(wnd)
   loadExtensions()
