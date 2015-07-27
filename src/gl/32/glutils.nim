@@ -20,7 +20,6 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 
-import unsigned
 import opengl
 type EGraphicsAPI* = object of Exception
 proc EnumString*(val: GLenum): string =
@@ -30,7 +29,7 @@ proc EnumString*(val: GLenum): string =
   of GL_INVALID_ENUM: result = "GL_INVALID_ENUM"
   of GL_INVALID_OPERATION: result = "GL_INVALID_OPERATION"
   of GL_INVALID_VALUE: result = "GL_INVALID_VALUE"
-  else: result = "unrecognised enum"
+  else: result = "unrecognised enum: " & $val
 proc CheckError*() =
   var err = glGetError()
   if err != GL_NO_ERROR:

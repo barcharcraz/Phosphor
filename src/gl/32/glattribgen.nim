@@ -80,7 +80,16 @@ proc GetSizeOfGLType(typ: GLenum): int =
     return 4
   else:
     raise newException(EUnsupportedAttribType, "coudl not get type size")
+
+ 
 proc SetUpAttribArray(program, vao, verts, indices: GLuint; nimtyp: typedesc[tuple | object]) =
+  ## the function is the core of Phosphor's smart(er) binding system
+  ## it's generic (ofc) and takes some type, we use compile time magic
+  ## to automaticly set up the vao to have an input attirbute of that type
+  ## this version of the function works with structs of attribs (AoS style)
+  
+  # we need a "real" instance of the type to use fieldPairs, we never deref it though
+  # we we'll just cast nil to the correct type
   var typInst: ptr nimtyp = cast[ptr nimtyp](nil)
   glBindVertexArray(vao)
   glBindBuffer(GL_ARRAY_BUFFER, verts)
@@ -88,9 +97,14 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint; nimtyp: typedesc[tup
   var attribIdx = 0.GLuint
   var attribLoc: GLint = -1
   for name, val in fieldPairs(typInst[]):
+    # as we find fields we enable the relevant attrib indices
     glEnableVertexAttribArray(attribIdx)
+    # we assume that the attribute name in the program
+    # matches the name of the field of the struct, perhaps
+    # someday there will be an override for this but honestly
+    # if you need it you can just make your own VAO
     attribLoc = glGetAttribLocation(program, name)
-    if attribLoc == -1: 
+    if attribLoc == -1:
       raise newException(EAttribNameNotFound, name & " is not an attrib in the program")
     var attribInfo = GetAttribInfo(program, attribLoc.GLuint)
     assert(sizeof(val) == GetSizeOfGLType(attribInfo.typ) * attribInfo.size)
@@ -102,6 +116,7 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint; nimtyp: typedesc[tup
       GLsizei(sizeof(attribInfo.typ) * attribInfo.size),
       cast[pointer](addr val))
     inc(attribIdx)
+
 proc SetUpAttribArray(program, vao, verts, indices: GLuint, nimtyp: typedesc) =
   var activeAttribs: GLint
   glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, addr activeAttribs)

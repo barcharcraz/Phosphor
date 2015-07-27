@@ -21,13 +21,56 @@
 ## SOFTWARE.
 
 import opengl
+import tables
+
+
+type FBOInfo = object
+  drawBuffers: seq[GLenum]
+
+
+#global data vector
+var framebufferInfo = initTable[GLuint, FBOInfo]()
 
 #stupid hack, we exploit the dot
 #casting style so we can do fbo.Color[0] = ...
 #there may be a better way to do this
-type Color = distinct GLuint
-type Depth = distinct GLuint
-type Stencil = distinct GLuint
-proc initFBO(): GLuint =
+type color* = distinct GLuint
+
+proc initFBOInfo(): FBOInfo =
+  result.drawBuffers = @[]
+
+proc initFBO*(): GLuint =
   glGenFramebuffers(1, addr result)
-proc `[]=`(t: Color, n: int,
+  framebufferInfo.add(result, initFBOInfo())
+proc `[]=`*(t: var color, n: int, tex: GLuint) =
+  glBindFramebuffer(GL_FRAMEBUFFER, t.GLuint)
+  #TODO: here we assume that we are attaching a 2d texture
+  # also we always bind texture level 0, which is find since
+  # there's little reason to use a different one
+  glFramebufferTexture(GL_FRAMEBUFFER, GLenum(GL_COLOR_ATTACHMENT0 + n), tex, 0.GLint)
+  #add the color buffer to our draw buffers array
+  var info = addr framebufferInfo.mget(t.Gluint)
+  while info.drawBuffers.len <= n:
+    info.drawBuffers.add(GL_NONE)
+  info.drawBuffers[n] = GLenum(GL_COLOR_ATTACHMENT0 + n)
+  # and set the draw buffers
+  glDrawBuffers(info.drawBuffers.len.GLsizei, addr info.drawBuffers[0])
+  echo("set drawbuffers: ", $info.drawbuffers)
+  glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+proc `depth=`*(fbo: var GLuint, tex: GLuint) =
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, tex, 0.GLint)
+  glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+proc `stencil=`*(fbo: var GLuint, tex: GLuint) =
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, tex, 0.GLint)
+  glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+proc clear*(fbo: GLuint) =
+  ## clears an FBO so the caller need not use glBindFramebuffer and
+  ## glClear in their calling code
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
+  glBindFramebuffer(GL_FRAMEBUFFER, 0)
