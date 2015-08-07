@@ -55,7 +55,6 @@ proc `[]=`*(t: var color, n: int, tex: GLuint) =
   info.drawBuffers[n] = GLenum(GL_COLOR_ATTACHMENT0 + n)
   # and set the draw buffers
   glDrawBuffers(info.drawBuffers.len.GLsizei, addr info.drawBuffers[0])
-  echo("set drawbuffers: ", $info.drawbuffers)
   glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
 proc `depth=`*(fbo: var GLuint, tex: GLuint) =
