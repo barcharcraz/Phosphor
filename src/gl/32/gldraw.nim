@@ -281,6 +281,9 @@ proc `vertices=`*[T](self: var TDrawObject, verts: var openarray[T]) =
   SetVertexBuffer(self, verts)
 proc `indices=`*[T](self: var TDrawObject, indices: var openarray[T]) =
   SetIndexBuffer(self, indices)
+proc `framebuffer=`*(self: var TDrawObject, fbo: GLuint) =
+    self.framebuffer = fbo
+proc `framebuffer`*(self: TDrawObject): GLuint = self.framebuffer
 proc SetShaderValue[T](self: var TDrawObject, name: string, val: var T) =
   var info = mget(programinfo, self.program)
   if hasKey(info.uniformBlocks, name):

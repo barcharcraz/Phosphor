@@ -20,6 +20,11 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 
+
+## we use this module to manage framebuffer objects
+## and provide a render-to-texture model that closely matches
+## direct3d. That is we can simply add render targets and a single
+## depth and sencil target
 import opengl
 
 #stupid hack, we exploit the dot
@@ -28,6 +33,13 @@ import opengl
 type Color = distinct GLuint
 type Depth = distinct GLuint
 type Stencil = distinct GLuint
+
+var defaultFBO: GLuint = 0
 proc initFBO(): GLuint =
   glGenFramebuffers(1, addr result)
-proc `[]=`(t: Color, n: int,
+## attach value to the nth color attachment
+## we assume that value is a 2D texture and we use
+## the first (0th) mip level
+proc `[]=`(t: var Color, n: int, value: GLuint) =
+    assert(t.GLuint == defaultFBO)
+    glBindFramebuffer(t.Gluint)
