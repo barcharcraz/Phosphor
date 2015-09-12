@@ -62,9 +62,9 @@ proc CreateProgram*(shaders: varargs[GLuint]): GLuint =
   result = glCreateProgram()
   for elm in shaders:
     glAttachShader(result, elm)
-  glBindAttribLocation(result, 0, "pos")
-  glBindAttribLocation(result, 1, "uv")
-  glBindAttribLocation(result, 2, "norm")
+  #glBindAttribLocation(result, 0, "pos")
+  #glBindAttribLocation(result, 1, "uv")
+  #glBindAttribLocation(result, 2, "norm")
   glLinkProgram(result)
   var (res, err) = CheckLinkStatus(result)
   CheckError()

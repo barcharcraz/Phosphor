@@ -22,5 +22,7 @@
 
 import gl/32/gldraw
 import gl/32/glprogram
+import gl/32/glframebuffer
 export gldraw
 export glprogram
+export glframebuffer

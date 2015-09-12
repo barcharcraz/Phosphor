@@ -1,6 +1,6 @@
 ## The MIT License (MIT)
 ## 
-## Copyright (c) 2014 Charlie Barto
+## Copyright (c) 2015 Charlie Barto
 ## 
 ## Permission is hereby granted, free of charge, to any person obtaining a copy
 ## of this software and associated documentation files (the "Software"), to deal
@@ -19,20 +19,34 @@
 ## LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
+import d3d11
 
-import opengl
-type EGraphicsAPI* = object of Exception
-proc EnumString*(val: GLenum): string =
-  ## gets the string representation of
-  ## `val`
-  case val
-  of GL_INVALID_ENUM: result = "GL_INVALID_ENUM"
-  of GL_INVALID_OPERATION: result = "GL_INVALID_OPERATION"
-  of GL_INVALID_VALUE: result = "GL_INVALID_VALUE"
-  else: result = "unrecognised enum: " & $val
-proc CheckError*() =
-  var err = glGetError()
-  if err != GL_NO_ERROR:
-    var errStr = EnumString(err)
-    raise newException(EGraphicsAPI, errStr)
+## we always use instanced rendering, possibly with
+## only one instance. This structure contains
+## all the data needed to actually issue a draw call
+## and indeed if put in a buffer could presumably be used
+## for an indirect draw
+type TDrawIndexedInstancedCommand* = object
+  uint32 IndexCountPerInstance
+  uint32 InstanceCount
+  uint32 StartIndexLocation
+  int32 BaseVertexLocation
+  uint32 StartInstanceLocation
+
+type TVertexShaderObject = object
+  vs: ptr ID3D11VertexShader
+  constants: seq[ptr ID3D11Buffer]
+  texViews: seq[ptr ID3D11ShaderResourceView]
+  samplers: seq[ptr ID3D11SamplerState]
+type TPixelShaderObject = object
+  ps: ptr ID3D11PixelShader
+  constants: seq[ptr ID3D11Buffer]
+  texViews: seq[ptr ID3D11ShaderResourceView]
+  samplers: seq[ptr ID3D11SamplerState]
+type TDrawObject* = object
+  vs: TVertexShaderObject
+  ps: TPixelShaderObject
+  vertexBuffer: ptr ID3D11Buffer
+  indexBuffer: ptr ID3D11Buffer
+  inputLayout: ptr ID3D11InputLayout
 

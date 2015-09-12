@@ -1,36 +1,37 @@
-## The MIT License (MIT)
-## 
-## Copyright (c) 2014 Charlie Barto
-## 
-## Permission is hereby granted, free of charge, to any person obtaining a copy
-## of this software and associated documentation files (the "Software"), to deal
-## in the Software without restriction, including without limitation the rights
-## to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-## copies of the Software, and to permit persons to whom the Software is
-## furnished to do so, subject to the following conditions:
-## 
-## The above copyright notice and this permission notice shall be included in all
-## copies or substantial portions of the Software.
-## 
-## THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-## IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-## FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-## AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-## LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-## SOFTWARE.
+# The MIT License (MIT)
+# 
+# Copyright (c) 2014 Charlie Barto
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 import opengl
 import tables
 import logging
 import hashes
-import unsigned
 import sets
 import glattribgen
 import glprogram
-## implements draw data objects which store all the state reuqired for
-## issueing a draw call, these are designed to be simpler and less error prone than
-## all the binding stuff usually required
+import glutils
+
 type TDrawElementsIndirectCommand* = object
+  ## Implements draw data objects which store all the state reuqired for
+  ## issueing a draw call, these are designed to be simpler and less error prone than
+  ## all the binding stuff usually required
   count: uint32
   primCount: uint32
   firstIndex: uint32
@@ -40,22 +41,41 @@ type TDrawCommand* = object
   mode: GLenum
   idxType: GLenum
   command: TDrawElementsIndirectCommand
+
+
 type TDrawObject* = object
+  ## TDrawObject contains everything needed to issue a draw command
+  ## The program is set before issueing the command and we use the contents of
+  ## the uniforms and textures arrays to figure out what to bind to the program's
+  ## various inputs
   program: GLuint
   drawCommand: TDrawCommand
   VertexBuffer: GLuint
   IndexBuffer: GLuint
   VertexAttributes: GLuint
-  framebuffer: GLuint
+  framebuffer*: GLuint
   uniforms: seq[GLuint] ## sequence of uniform blocks, index is uniform block binding
   textures: seq[tuple[typ: GLenum, id: GLuint]] ## sequence of textures index is texture unit
   opaqueTypes: Table[GLint, GLint] ## pairs of (location, value) for things to be bound to samplers
                                      ## the value is the texture unit
 
+
+
 type TSamplerData = object
+  ## metadata information about a sampler
+  ## this is used for non-bindless (bindfull?)
+  ## samplers. Bindless ones can just go into a
+  ## unform block object
   location: GLint
   typ: GLenum
+
+
 type TProgramData = object
+  ## TProgramData stores metadata about a given shader program
+  ## we calculate this when we first load and compile a shader program
+  ## and keep it until the program is destroyed or the process ends
+  ##
+  ## This data is used to quickly look up where to bind things
   uniformBlocks: Table[string, GLuint]
   vertexAttribs: Table[string, GLuint]
   opaqueNames: Table[string, TSamplerData]
@@ -63,6 +83,7 @@ type TProgramData = object
 type EIdentifierTooLong = object of Exception
 type EUnsupportedSamplerType = object of Exception
 type ENameNotFound = object of Exception
+type EIncompleteframebuffer = object of Exception
 proc initProgramData(): TProgramData =
   result.uniformBlocks = initTable[string, GLuint]()
   result.opaqueNames = initTable[string, TSamplerData]()
@@ -123,12 +144,19 @@ proc initDrawCommand*(): TDrawCommand =
   result.idxType = GL_UNSIGNED_INT
   result.mode = GL_TRIANGLES
 
-proc hash*(x:GLuint): THash = hash(x.int)
+proc hash*(x:GLuint): Hash = hash(x.int)
 var programinfo = initTable[GLuint, TProgramData]()
 ## the ownedUBOs set consists of all the UBOs that we created
 ## when somebody assigned a nimrod object to a uniform in the shader
 var ownedBuffers = initSet[GLuint]()
 proc initDrawObject*(program: GLuint): TDrawObject =
+  ## initialize a draw object using a program, if the program
+  ## has already been used with Phosphor the cached program
+  ## metadata is used, otherwise the program is analyzed using
+  ## introspection to generate new cache data.
+  ##
+  ## This operation can take a while, espicially with new programs
+  ## and it is not recomended to make new DrawObjects every frame
   if not programinfo.hasKey(program):
     programinfo[program] = initProgramData(program)
   result.program = program
@@ -138,7 +166,7 @@ proc initDrawObject*(program: GLuint): TDrawObject =
   result.opaqueTypes = initTable[GLint, GLint]()
   result.framebuffer = 0
   result.textures = @[]
-proc SetVertexBuffer(self: var TDrawObject, val: GLuint) = 
+proc SetVertexBuffer(self: var TDrawObject, val: GLuint) =
   if self.VertexBuffer in ownedBuffers:
     ownedBuffers.excl(self.VertexBuffer)
     glDeleteBuffers(1, addr self.VertexBuffer)
@@ -269,9 +297,17 @@ proc BindDrawObject(obj: TDrawObject) =
   for key, elm in obj.opaqueTypes:
     glUniform1i(key, elm)
 proc DrawBundle*(bundle: var TDrawObject) =
+  ## Draw a draw object, this call should have similar overhead
+  ## to binding and drawing without using Phosphor.
+  ## Do note however that Phosphor binds a new vao for each object drawn
+  ## which can be costly on some drivers, this may become configurable
+  ## in later versions
   BindDrawObject(bundle)
   glBindVertexArray(bundle.VertexAttributes)
-  glBindFramebuffer(GL_FRAMEBUFFER, bundle.framebuffer)
+  glBindframebuffer(GL_FRAMEBUFFER, bundle.framebuffer)
+  var status = glCheckframebufferStatus(GL_FRAMEBUFFER)
+  if(status != GL_FRAMEBUFFER_COMPLETE):
+    raise newException(EIncompleteframebuffer, EnumString(status))
   #glDrawElementsIndirect(bundle.drawCommand.mode, bundle.drawCommand.idxType, addr bundle.drawCommand.command)
   glDrawElements(bundle.drawCommand.mode, bundle.drawCommand.command.count.GLsizei,
                  bundle.drawCommand.idxType, nil)
@@ -295,7 +331,7 @@ proc SetShaderValue[T](self: var TDrawObject, name: string, val: var T) =
       raise newException(ENameNotFound, "name not found in shader")
   else:
     raise newException(ENameNotFound, "name not found in shader")
-proc `.=`*[T](self: var TDrawObject, name: string, val: T) = 
+proc `.=`*[T](self: var TDrawObject, name: string, val: T) =
   when T is var:
     SetShaderValue(self, name, val)
   else:
