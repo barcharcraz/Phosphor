@@ -20,13 +20,16 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 
-
-## we use this module to manage framebuffer objects
-## and provide a render-to-texture model that closely matches
-## direct3d. That is we can simply add render targets and a single
-## depth and sencil target
 import opengl
 import tables
+
+
+type FBOInfo = object
+  drawBuffers: seq[GLenum]
+
+
+#global data vector
+var framebufferInfo = initTable[GLuint, FBOInfo]()
 
 #stupid hack, we exploit the dot
 #casting style so we can do fbo.Color[0] = ...
@@ -70,3 +73,5 @@ proc clear*(fbo: GLuint) =
   glBindFramebuffer(GL_FRAMEBUFFER, fbo)
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
   glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+
