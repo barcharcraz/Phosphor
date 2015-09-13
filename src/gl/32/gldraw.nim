@@ -27,7 +27,7 @@ import sets
 import glattribgen
 import glprogram
 import glutils
-
+export tables
 type TDrawElementsIndirectCommand* = object
   ## Implements draw data objects which store all the state reuqired for
   ## issueing a draw call, these are designed to be simpler and less error prone than

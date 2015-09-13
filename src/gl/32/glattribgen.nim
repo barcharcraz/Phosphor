@@ -20,6 +20,7 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 import opengl
+
 type EAttribNameNotFound = object of Exception
 type EUnsupportedAttribType = object of Exception
 type EAttribNameTooLong = object of Exception
@@ -46,10 +47,10 @@ proc GetAttribInfo(program, attrib: GLuint): TAttributeInfo =
   result.location = glGetAttribLocation(program, addr nameBuffer[0])
 proc GetVectorTypLength(typ: GLenum): GLint =
   case typ
-  of cGL_FLOAT: return 1
-  of GL_FLOAT_VEC2: return 2
-  of GL_FLOAT_VEC3: return 3
-  of GL_FLOAT_VEC4: return 4
+  of cGL_FLOAT: result = 1
+  of GL_FLOAT_VEC2: result = 2
+  of GL_FLOAT_VEC3: result = 3
+  of GL_FLOAT_VEC4: result = 4
   else: raise newException(EUnsupportedAttribType,
     "attrib type " & repr(typ) & " not supported")
 proc GetVectorTypBaseTyp(typ: GLenum): GLenum =
@@ -125,6 +126,7 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint, nimtyp: typedesc) =
   glBindVertexArray(vao)
   glBindBuffer(GL_ARRAY_BUFFER, verts)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices)
+  echo "activeAttribs", activeAttribs
   for i in 0..activeAttribs - 1:
     var info = GetAttribInfo(program, i.GLuint)
     # we convert types such as GL_FLOAT_VEC3 to GL_FLOAT
@@ -132,7 +134,8 @@ proc SetUpAttribArray(program, vao, verts, indices: GLuint, nimtyp: typedesc) =
     # is /could/ be an array of vectors of the right length
     var baseType = GetVectorTypBaseTyp(info.typ)
     assert(ConfirmTypesMatch(baseType, nimtyp))
-    stride = stride + sizeof(nimtyp) * info.size
+    echo info.name, info.size, " ", sizeof(nimtyp)
+    stride = stride + sizeof(nimtyp) * info.size * GetVectorTypLength(info.typ)
   for i in 0..activeAttribs - 1:
     var info = GetAttribInfo(program, i.GLuint)
     glEnableVertexAttribArray(i.GLuint)
